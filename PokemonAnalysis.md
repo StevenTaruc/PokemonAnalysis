@@ -105,7 +105,6 @@ head(z_score, 10)
     ## 10 -0.75937922 -1.7666705 -1.73838016
 
 We now have the z-score of all of the pokemon for the qualities. Now we will append the pokemon types.
-======================================================================================================
 
 ``` r
 z_score$Type_1 <- pokes$Type_1
