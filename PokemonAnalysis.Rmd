@@ -1,0 +1,109 @@
+---
+title: "Pokemon Analysis"
+author: "Evan Shui,Steven Taruc"
+date: "2/17/2019"
+output: github_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Import data / libraries
+
+```{r}
+library(tidyverse)
+pokes <- read.csv("https://www.dropbox.com/s/i0lwxgv86eaoq4o/pokemon.csv?dl=1")
+```
+
+# Introduction
+
+Pokemon is a game where each player has a set of characters, known as pokemon, that can be used to fight other pokemon. The ultimate goal is to beat all of your opponent's pokemon, getting their HP to 0, while keeping at least one of your pokemon alive. Thus, pokemon with greater stats, any of the fighting qualities that are covered by the Total column, are more desirable than other pokemon with lesser stats. The purpose of this report is to determine which pokemon type is better. Our metric used to determine the "better" pokemon is by calculating the Z-score and calculating it's average for each pokemon's fight qualities relative to the other pokemon in it's type. Our purpose is to find the pokemon(s) that are best suited for attacking and defending. We defined a pokemon that is best suited for attacking to be a pokemon that has great stats in speed, attack, and special attack. On the other hand, a pokemon that is best suited for defending is a pokemon that has great stats in defense, health, and special defense.
+
+# Analysis
+
+First, we will be calculating the z-score of all the attributes. Given that we are only focusing on a pokemon's types and fight qualities, we don't need any of the other attributes provided in the data. We also create two new columns.
+
+
+Here we are creating summarizing each pokemon's attacks by summing their attributes related to attacking such as special attack and speed. Same goes for its defense attributes. We then calculate the means of their overall attributes using the apply function.
+```{r}
+data <- pokes %>%
+  select(Type_1:Speed) %>%
+  select(Total:Speed) %>%
+  mutate(atk_tot = Attack + Sp_Atk + Speed) %>%
+  mutate(def_tot = HP + Defense + Sp_Def)
+mean_val <- data %>%
+  select(Total: def_tot) %>%
+  apply(2, mean)
+mean_val
+```
+
+We then calculate the overall standard deviation of each variable from the means using the apply function.
+```{r}
+std_val <- data %>%
+  select(Total: def_tot) %>%
+  apply(2, sd)
+std_val
+```
+
+We then calculate the z-scores for each variable of each observation using the sweep function. The sweep function subtracts each column by its respective means. Therefore, we create a tempporary data set for observed - expected.
+```{r}
+temp <- data %>%
+  select(Total: def_tot)
+no_mean <- sweep(data.matrix(temp), 2, mean_val)
+```
+
+```{r}
+z_score <- as.data.frame(sweep(data.matrix(no_mean), 2, std_val, '/'))
+head(z_score, 10)
+```
+
+# We now have the z-score of all of the pokemon for the qualities. Now we will append the pokemon types.
+```{r}
+z_score$Type_1 <- pokes$Type_1
+z_score$Type_2 <- pokes$Type_2
+head(z_score,10)
+```
+Here we calculate the average total attack Z-score of each pokemon type.
+```{r}
+avg_atk <- z_score %>%
+  group_by(Type_1, Type_2) %>%
+  summarize(avg_atk = mean(atk_tot)) %>%
+  arrange(desc(avg_atk))
+avg_atk$type <- paste(avg_atk$Type_1, avg_atk$Type_2)
+head(avg_atk, 10)
+```
+Here we calculate the average total defense Z-score of each pokemon type.
+```{r}
+avg_def <- z_score %>%
+  group_by(Type_1, Type_2) %>%
+  summarize(avg_def = mean(def_tot)) %>%
+  arrange(desc(avg_def))
+avg_def$type <- paste(avg_def$Type_1, avg_def$Type_2)
+head(avg_def, 10)
+```
+Here is a plot displaying the top 10 pokemon types with the highest Z-score in average total defense.
+```{r}
+
+avg_def$type <- factor(avg_def$type, levels = avg_def$type[order(avg_def$avg_def)])
+
+avg_def %>%
+  arrange(desc(avg_def)) %>%
+  head(10) %>%
+  ggplot(aes(x = type, y=avg_def, fill=type)) + geom_col()
+```
+Here is a plot displaying the top 10 pokemon types with the highest Z-score in average total attack
+
+```{r}
+avg_atk$type <- factor(avg_atk$type, levels = avg_atk$type[order(avg_atk$avg_atk)])
+
+avg_atk %>%
+  arrange(desc(avg_atk)) %>%
+  head(10) %>%
+  ggplot(aes(x = type, y=avg_atk, fill=type)) + geom_col()
+```
+
+# Conclusion
+
+Given these two graphs, it seems like if the best pokemon for defense would be a pokemon of Rock Fairy or Ghost Dragon types while the best pokemon for attack would be a pokemon of the Steel Dragon, Dragon Fire, or Dragon Electric type. Here we can see that the Rock Fairy and the Ghost Dragon types have a Z-score of 2.267846648 for defense based stats out of all the pokemon. On the other hand, steel dragon, Dragon Fire, and Dragon Electric types have a Z-score of 2.323343984. We also noticed that majority of the top tier pokemons are "Dragon types". Thus, we can conclude that a having a team of pokemon with these 5 types would maximize the potential of winning battles against other players.
